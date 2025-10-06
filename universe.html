@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arctronic - Coming Soon</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000000;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            font-family: monospace;
+        }
+
+        .universe-container {
+            position: relative;
+            width: 80vmin;
+            height: 80vmin;
+            max-width: 600px;
+            max-height: 600px;
+        }
+
+        .universe-canvas {
+            width: 100%;
+            height: 100%;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            background: #000000;
+            cursor: crosshair;
+        }
+
+        .universe-title {
+            position: absolute;
+            top: -60px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #ffffff;
+            font-family: 'Liberation Sans', sans-serif;
+            font-size: 28px;
+            font-weight: 300;
+            letter-spacing: 6px;
+            text-align: center;
+        }
+
+        .universe-subtitle {
+            position: absolute;
+            bottom: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #888888;
+            font-family: 'Clair Murphy', serif;
+            font-size: 14px;
+            font-weight: 400;
+            letter-spacing: 3px;
+            text-align: center;
+        }
+
+        .controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            color: #ffffff;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .control-item {
+            margin-bottom: 8px;
+        }
+
+        kbd {
+            background: #333333;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="universe-container">
+        <div class="universe-title">Arctronic</div>
+        <canvas class="universe-canvas" id="universeCanvas"></canvas>
+        <div class="universe-subtitle">Coming Soon</div>
+    </div>
+
+    <div class="controls">
+        <div class="control-item"><kbd>SPACE</kbd> Pause/Resume</div>
+        <div class="control-item"><kbd>R</kbd> Reset</div>
+        <div class="control-item"><kbd>+/-</kbd> Speed</div>
+    </div>
+
+    <script>
+        class Universe {
+            constructor() {
+                this.canvas = document.getElementById('universeCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.isRunning = true;
+                this.rotationSpeed = 0.002;
+                this.rotation = 0;
+                this.mousePos = { x: 0, y: 0 };
+                this.pings = [];
+                
+                this.setupCanvas();
+                this.setupEventListeners();
+                this.animate();
+            }
+
+            setupCanvas() {
+                const container = this.canvas.parentElement;
+                const size = Math.min(container.clientWidth, container.clientHeight);
+                this.canvas.width = size;
+                this.canvas.height = size;
+                this.canvas.style.width = size + 'px';
+                this.canvas.style.height = size + 'px';
+            }
+
+            setupEventListeners() {
+                // Mouse tracking
+                this.canvas.addEventListener('mousemove', (e) => {
+                    const rect = this.canvas.getBoundingClientRect();
+                    this.mousePos.x = e.clientX - rect.left;
+                    this.mousePos.y = e.clientY - rect.top;
+                });
+
+                // Click to add ping
+                this.canvas.addEventListener('click', (e) => {
+                    const rect = this.canvas.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    this.addPing(x, y);
+                });
+
+                // Keyboard controls
+                document.addEventListener('keydown', (e) => {
+                    switch(e.code) {
+                        case 'Space':
+                            e.preventDefault();
+                            this.isRunning = !this.isRunning;
+                            break;
+                        case 'KeyR':
+                            e.preventDefault();
+                            this.rotation = 0;
+                            this.pings = [];
+                            break;
+                        case 'Equal':
+                        case 'NumpadAdd':
+                            e.preventDefault();
+                            this.rotationSpeed = Math.min(this.rotationSpeed + 0.001, 0.01);
+                            break;
+                        case 'Minus':
+                        case 'NumpadSubtract':
+                            e.preventDefault();
+                            this.rotationSpeed = Math.max(this.rotationSpeed - 0.001, 0.0005);
+                            break;
+                    }
+                });
+            }
+
+            addPing(x, y) {
+                this.pings.push({
+                    x: x,
+                    y: y,
+                    timestamp: Date.now(),
+                    radius: 0,
+                    opacity: 1
+                });
+            }
+
+            draw() {
+                const { width, height } = this.canvas;
+                const centerX = width / 2;
+                const centerY = height / 2;
+                const radius = Math.min(width, height) / 2 - 20;
+
+                // Clear canvas
+                this.ctx.clearRect(0, 0, width, height);
+
+                // Save context for rotation
+                this.ctx.save();
+                this.ctx.translate(centerX, centerY);
+                this.ctx.rotate(this.rotation);
+
+                // Draw concentric irregular lines (like the image)
+                this.ctx.strokeStyle = '#ffffff';
+                this.ctx.lineWidth = 2;
+
+                // Outer boundary
+                this.ctx.beginPath();
+                this.ctx.arc(0, 0, radius, 0, Math.PI * 2);
+                this.ctx.stroke();
+
+                // Irregular concentric lines
+                const lineCount = 6;
+                for (let i = 1; i < lineCount; i++) {
+                    const lineRadius = (radius / lineCount) * i;
+                    const irregularity = 0.1 + (i * 0.05); // More irregular towards center
+                    
+                    this.ctx.beginPath();
+                    this.ctx.lineWidth = i === 2 ? 3 : 1; // Thicker line for the oval
+                    
+                    for (let angle = 0; angle < Math.PI * 2; angle += 0.1) {
+                        const irregularRadius = lineRadius + Math.sin(angle * 3 + i) * irregularity * lineRadius;
+                        const x = Math.cos(angle) * irregularRadius;
+                        const y = Math.sin(angle) * irregularRadius;
+                        
+                        if (angle === 0) {
+                            this.ctx.moveTo(x, y);
+                        } else {
+                            this.ctx.lineTo(x, y);
+                        }
+                    }
+                    this.ctx.closePath();
+                    this.ctx.stroke();
+                }
+
+                // Draw dots at specific positions (like the image)
+                const dots = [
+                    { angle: 0.3, radius: radius * 0.8 },
+                    { angle: 0.7, radius: radius * 0.8 },
+                    { angle: 1.2, radius: radius * 0.6 },
+                    { angle: 1.8, radius: radius * 0.8 },
+                    { angle: 2.3, radius: radius * 0.8 },
+                    { angle: 2.8, radius: radius * 0.6 }
+                ];
+
+                this.ctx.fillStyle = '#ffffff';
+                dots.forEach(dot => {
+                    const x = Math.cos(dot.angle) * dot.radius;
+                    const y = Math.sin(dot.angle) * dot.radius;
+                    
+                    this.ctx.beginPath();
+                    this.ctx.arc(x, y, 3, 0, Math.PI * 2);
+                    this.ctx.stroke();
+                    this.ctx.fill();
+                });
+
+                // Restore context
+                this.ctx.restore();
+
+                // Draw pings
+                this.pings.forEach((ping, index) => {
+                    const age = Date.now() - ping.timestamp;
+                    const progress = Math.min(age / 2000, 1);
+                    const currentRadius = progress * 30;
+                    const currentOpacity = 1 - progress;
+                    
+                    this.ctx.strokeStyle = `rgba(255, 255, 255, ${currentOpacity})`;
+                    this.ctx.lineWidth = 2;
+                    this.ctx.beginPath();
+                    this.ctx.arc(ping.x, ping.y, currentRadius, 0, Math.PI * 2);
+                    this.ctx.stroke();
+                });
+
+                // Remove old pings
+                this.pings = this.pings.filter(ping => Date.now() - ping.timestamp < 2000);
+
+                // Draw cursor echo
+                const distance = Math.sqrt(
+                    Math.pow(this.mousePos.x - centerX, 2) + Math.pow(this.mousePos.y - centerY, 2)
+                );
+                
+                if (distance <= radius) {
+                    this.ctx.strokeStyle = '#888888';
+                    this.ctx.lineWidth = 1;
+                    this.ctx.beginPath();
+                    this.ctx.arc(this.mousePos.x, this.mousePos.y, 2, 0, Math.PI * 2);
+                    this.ctx.stroke();
+                }
+            }
+
+            animate() {
+                if (this.isRunning) {
+                    this.rotation += this.rotationSpeed;
+                }
+                
+                this.draw();
+                requestAnimationFrame(() => this.animate());
+            }
+        }
+
+        // Initialize universe when page loads
+        window.addEventListener('load', () => {
+            new Universe();
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            setTimeout(() => {
+                new Universe();
+            }, 100);
+        });
+    </script>
+</body>
+</html>
